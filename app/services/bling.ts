@@ -202,6 +202,10 @@ export async function consultarEstoque() {
   throw new Error('Função consultarEstoque ainda não implementada.');
 }
 
+export async function consultarProdutos() {
+  throw new Error('Função consultarProdutos ainda não implementada.');
+}
+
 export async function consultarPedidos() {
   throw new Error('Função consultarPedidos ainda não implementada.');
 }
