@@ -209,6 +209,14 @@ function formatBlingError(error: unknown) {
   return JSON.stringify(error);
 }
 
+function normalizeLimit(limit: number | undefined, defaultLimit = 10, maxLimit = 50) {
+  if (!Number.isFinite(limit) || !limit || limit <= 0) {
+    return defaultLimit;
+  }
+
+  return Math.min(Math.floor(limit), maxLimit);
+}
+
 async function getValidAccessToken() {
   const tokens = await readTokens();
 
@@ -279,7 +287,7 @@ async function blingGet<T>(resourcePath: string, searchParams?: Record<string, s
 export async function consultarProdutos(options: { limit?: number; query?: string } = {}) {
   const data = await blingGet<BlingListResponse<BlingProduct>>('/produtos', {
     pagina: '1',
-    limite: String(options.limit ?? 10),
+    limite: String(normalizeLimit(options.limit)),
     criterio: options.query,
   });
 
@@ -289,7 +297,7 @@ export async function consultarProdutos(options: { limit?: number; query?: strin
 export async function consultarPedidos(options: { limit?: number; situacao?: string } = {}) {
   const data = await blingGet<BlingListResponse<BlingOrder>>('/pedidos/vendas', {
     pagina: '1',
-    limite: String(options.limit ?? 10),
+    limite: String(normalizeLimit(options.limit)),
     idSituacao: options.situacao,
   });
 
@@ -297,7 +305,7 @@ export async function consultarPedidos(options: { limit?: number; situacao?: str
 }
 
 export async function consultarEstoque(options: { query?: string; limit?: number } = {}) {
-  const products = await consultarProdutos({ query: options.query, limit: options.limit ?? 10 });
+  const products = await consultarProdutos({ query: options.query, limit: normalizeLimit(options.limit) });
   const productIds = products.map((product) => String(product.id)).filter(Boolean);
 
   if (productIds.length === 0) {
@@ -314,7 +322,7 @@ export async function consultarEstoque(options: { query?: string; limit?: number
 export async function consultarOrdensProducao(options: { limit?: number } = {}) {
   const data = await blingGet<BlingListResponse<BlingProductionOrder>>('/ordens-producao', {
     pagina: '1',
-    limite: String(options.limit ?? 10),
+    limite: String(normalizeLimit(options.limit)),
   });
 
   return data.data ?? [];

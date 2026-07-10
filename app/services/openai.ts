@@ -32,7 +32,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'consultarPedidos',
-      description: 'Lista pedidos de venda reais do Bling. Use para perguntas sobre pedidos abertos ou recentes.',
+      description: 'Lista pedidos de venda reais do Bling. Use para perguntas sobre pedidos abertos ou recentes. Se o usuário disser aberto sem informar ID de situação, consulte sem filtro e explique que o Bling depende do cadastro de situações.',
       parameters: {
         type: 'object',
         properties: {
@@ -92,7 +92,14 @@ function parseToolArguments(argumentsJson: string | undefined) {
 }
 
 function getNumber(value: unknown, fallback: number) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
 }
 
 function getString(value: unknown) {

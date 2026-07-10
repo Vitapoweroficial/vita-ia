@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { parseLimit } from '@/app/api/bling/utils';
 import { consultarOrdensProducao } from '@/app/services/bling';
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit') ?? 10);
-    const productionOrders = await consultarOrdensProducao({ limit: Number.isFinite(limit) ? limit : 10 });
+    const limit = parseLimit(url.searchParams);
+    const productionOrders = await consultarOrdensProducao({ limit });
 
     return NextResponse.json({ productionOrders });
   } catch (error) {

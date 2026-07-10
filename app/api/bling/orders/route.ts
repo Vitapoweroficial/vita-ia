@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { consultarPedidos } from '@/app/services/bling';
+import { optionalSearchParam, parseLimit } from '@/app/api/bling/utils';
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit') ?? 10);
-    const situacao = url.searchParams.get('situacao') ?? undefined;
-    const orders = await consultarPedidos({ limit: Number.isFinite(limit) ? limit : 10, situacao });
+    const limit = parseLimit(url.searchParams);
+    const situacao = optionalSearchParam(url.searchParams, 'situacao');
+    const orders = await consultarPedidos({ limit, situacao });
 
     return NextResponse.json({ orders });
   } catch (error) {
