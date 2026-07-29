@@ -1,0 +1,93 @@
+name: Deploy FLYPRO proposal
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public/flypro-live/**'
+      - 'app/propostas/flypro/assets/**'
+      - '.github/workflows/deploy-flypro-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build static proposal
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/assets
+          cp public/flypro-live/index.html _site/index.html
+          cp public/flypro-live/styles.css _site/styles.css
+          cp public/flypro-live/app.js _site/app.js
+          touch _site/.nojekyll
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const root = 'app/propostas/flypro/assets';
+          const out = '_site/assets';
+
+          function readSingle(file) {
+            const text = fs.readFileSync(file, 'utf8');
+            const match = text.match(/data:image\/webp;base64,([A-Za-z0-9+/=]+)/);
+            if (!match) throw new Error(`Não foi possível extrair o ativo ${file}`);
+            return match[1];
+          }
+
+          function readChunks(directory, count) {
+            let base64 = '';
+            for (let index = 0; index < count; index += 1) {
+              const file = path.join(directory, `c${index}.ts`);
+              const text = fs.readFileSync(file, 'utf8');
+              const match = text.match(/export default '([A-Za-z0-9+/=]+)'/);
+              if (!match) throw new Error(`Não foi possível extrair o fragmento ${file}`);
+              base64 += match[1];
+            }
+            return base64;
+          }
+
+          function writeAsset(filename, base64) {
+            fs.writeFileSync(path.join(out, filename), Buffer.from(base64, 'base64'));
+          }
+
+          writeAsset('flypro-logo.webp', readSingle(path.join(root, 'flypro.ts')));
+          writeAsset('vita-logo.webp', readChunks(path.join(root, 'vita'), 4));
+          writeAsset('potes.webp', readChunks(path.join(root, 'potes'), 6));
+          writeAsset('pouches.webp', readChunks(path.join(root, 'pouch'), 5));
+          NODE
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
