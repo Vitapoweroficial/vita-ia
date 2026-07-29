@@ -2,12 +2,72 @@ const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const money = (n) => Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const ASSET_FALLBACKS = {
+  flyproLogo: 'assets/flypro-logo.webp',
+  vitaLogo: 'assets/vita-logo.webp',
+  potes: 'assets/potes.webp',
+  pouches: 'assets/pouches.webp'
+};
+let loadedAssets = { ...ASSET_FALLBACKS };
+
+async function fetchAssetSource(path) {
+  const response = await fetch(new URL(path, window.location.href));
+  if (!response.ok) throw new Error(`Falha ao carregar ${path}`);
+  return response.text();
+}
+
+async function readSingleAsset(path) {
+  const text = await fetchAssetSource(path);
+  const match = text.match(/data:image\/webp;base64,([A-Za-z0-9+/=]+)/);
+  if (!match) throw new Error(`Ativo inválido: ${path}`);
+  return `data:image/webp;base64,${match[1]}`;
+}
+
+async function readChunkedAsset(directory, count) {
+  const chunks = await Promise.all(Array.from({ length: count }, (_, index) =>
+    fetchAssetSource(`${directory}/c${index}.ts`).then((text) => {
+      const match = text.match(/export default '([A-Za-z0-9+/=]+)'/);
+      if (!match) throw new Error(`Fragmento inválido: ${directory}/c${index}.ts`);
+      return match[1];
+    })
+  ));
+  return `data:image/webp;base64,${chunks.join('')}`;
+}
+
+async function hydrateBrandAssets() {
+  try {
+    const sourceRoot = '../../app/propostas/flypro/assets';
+    const [flyproLogo, vitaLogo, potes, pouches] = await Promise.all([
+      readSingleAsset(`${sourceRoot}/flypro.ts`),
+      readChunkedAsset(`${sourceRoot}/vita`, 4),
+      readChunkedAsset(`${sourceRoot}/potes`, 6),
+      readChunkedAsset(`${sourceRoot}/pouch`, 5)
+    ]);
+    loadedAssets = { flyproLogo, vitaLogo, potes, pouches };
+  } catch (error) {
+    console.info('Usando ativos locais da proposta.', error);
+  }
+
+  const pathToAsset = Object.fromEntries(Object.entries(ASSET_FALLBACKS).map(([key, path]) => [path, key]));
+  $$('img').forEach((image) => {
+    const currentPath = image.getAttribute('src');
+    const assetKey = image.dataset.asset || pathToAsset[currentPath];
+    const source = loadedAssets[assetKey];
+    if (source) image.src = source;
+  });
+
+  const hero = $('.hero-bg');
+  if (hero && loadedAssets.potes) {
+    hero.style.backgroundImage = `linear-gradient(90deg,#050506 0%,#050506f2 38%,#05050659 72%,#050506 100%),url(${loadedAssets.potes})`;
+  }
+}
+
 const formatData = {
   pote: {
     eyebrow: 'FORMATO POTE',
     title: 'Impacto de prateleira e percepção premium.',
     description: 'Uma apresentação robusta, familiar ao consumidor e com grande área visual para fortalecer a marca no ponto de venda.',
-    image: 'assets/potes.webp',
+    image: 'potes',
     alt: 'Mockup do Blend Proteico FLYPRO em pote',
     benefits: ['Visual mais premium', 'Maior percepção de valor', 'Experiência tradicional', 'Alta proteção do produto']
   },
@@ -15,7 +75,7 @@ const formatData = {
     eyebrow: 'FORMATO POUCH',
     title: 'Leveza, eficiência e presença contemporânea.',
     description: 'Uma alternativa prática, versátil e logística, com visual moderno e forte potencial para vendas digitais.',
-    image: 'assets/pouches.webp',
+    image: 'pouches',
     alt: 'Mockup do Blend Proteico FLYPRO em pouch',
     benefits: ['Menor volume logístico', 'Apelo moderno e versátil', 'Fechamento reutilizável', 'Prático para o consumidor']
   }
@@ -71,7 +131,7 @@ function selectFormat(key) {
   const img = $('#formatImage');
   img.style.opacity = 0;
   img.style.transform = 'scale(.97)';
-  setTimeout(() => { img.src = data.image; img.alt = data.alt; img.style.opacity = 1; img.style.transform = 'scale(1)'; }, 170);
+  setTimeout(() => { img.src = loadedAssets[data.image] || data.image; img.alt = data.alt; img.style.opacity = 1; img.style.transform = 'scale(1)'; }, 170);
   const radio = $(`input[name="decisionFormat"][value^="${key === 'pote' ? 'Pote' : 'Pouch'}"]`);
   if (radio) radio.checked = true;
 }
@@ -175,4 +235,12 @@ sections.forEach((s)=>navObserver.observe(s));
 
 window.addEventListener('scroll', () => { const max=document.documentElement.scrollHeight-innerHeight; $('#scrollProgress').style.width=`${max>0?(scrollY/max)*100:0}%`; }, {passive:true});
 
-selectFormat('pote'); selectFlavor(0); selectModel(1); renderSimulator();
+async function bootstrap() {
+  await hydrateBrandAssets();
+  selectFormat('pote');
+  selectFlavor(0);
+  selectModel(1);
+  renderSimulator();
+}
+
+bootstrap();
