@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ativar GitHub Pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/${{ github.repository }}/pages" -f build_type=workflow || \
+          gh api --method PUT "repos/${{ github.repository }}/pages" -f build_type=workflow || true
+
       - name: Configurar Pages
         uses: actions/configure-pages@v5
 
