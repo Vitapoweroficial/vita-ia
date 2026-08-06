@@ -25,6 +25,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Preparar site Imperium
+        run: |
+          mkdir -p imperium
+          cat deploy_payload/imperium/part-*.txt | tr -d '\n' | base64 -d | tar -xz -C imperium
+          rm -rf deploy_payload
+          test -f imperium/index.html
+          test -f imperium/styles.css
+          test -f imperium/js/main.js
+
       - name: Ativar GitHub Pages
         continue-on-error: true
         env:
