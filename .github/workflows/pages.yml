@@ -3,7 +3,7 @@ name: Publicar site no GitHub Pages
 on:
   push:
     branches:
-      - main
+      - gh-pages
   workflow_dispatch:
 
 permissions:
